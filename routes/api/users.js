@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const gravatar = require('gravatar');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const keys = require('../../config/keys');
 
 // Load User model
 const User = require('../../models/User');
@@ -20,7 +22,7 @@ router.get('/test', (req, res) => res.json({msg: "Users Works"}));
 router.post('/register', (req, res) => {
     User.findOne({ email: req.body.email }) //email that matches req.body.email (from the form)
     .then(user => {
-        if(user) {
+        if(!user) {
             return res.status(400).json({email: 'Email already exists'});
         } else {
             const avatar = gravatar.url(req.body.email, {
@@ -68,10 +70,18 @@ router.post('/login', (req,res) => {
         }
 
         // Check Password
-        bcrypt.compare(password, user.password)
-            .then(isMatch => {
-                if(isMatch) {
-                    res.json({msg: 'Success'});     
+        bcrypt.compare(password, user.password).then(isMatch => {
+            if (isMatch) {
+                // User Matched
+                const payload = { id: user.id, name: user.name, avatar: user.avatar } // Create JWT Payload
+
+                // Sign Token
+                jwt.sign(payload, keys.secretOrKey, { expiresIn: 3600 }, (err, token) => {
+                    res.json({
+                        success: true,
+                        token: 'Bearer ' + token //Bearer token is a type of protocol
+                    });
+                });
                 } else {
                     return res.status(400).json({password: 'Password incorrect'});
                 }
